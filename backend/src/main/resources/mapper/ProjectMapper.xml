@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aishare.mapper.ProjectMapper">
+
+    <select id="selectPage" resultType="com.aishare.entity.Project">
+        SELECT p.*
+        FROM share_projects p
+        <if test="q.tagId != null">
+            INNER JOIN share_project_tags pt ON p.id = pt.project_id AND pt.tag_id = #{q.tagId}
+        </if>
+        WHERE p.deleted = 0 AND p.status = 1
+        <if test="q.keyword != null and q.keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{q.keyword}, '%')
+                 OR p.description LIKE CONCAT('%', #{q.keyword}, '%'))
+        </if>
+        <choose>
+            <when test="q.sort == 'hottest'">ORDER BY p.view_count DESC</when>
+            <when test="q.sort == 'mostLiked'">ORDER BY p.like_count DESC</when>
+            <otherwise>ORDER BY p.created_at DESC</otherwise>
+        </choose>
+    </select>
+
+</mapper>
