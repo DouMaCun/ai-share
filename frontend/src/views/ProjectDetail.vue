@@ -42,8 +42,18 @@
               </div>
             </div>
 
-            <div class="description" v-if="project.description">
-              <pre>{{ project.description }}</pre>
+            <div class="description markdown-body" v-if="project.description" v-html="renderedDescription"></div>
+
+            <!-- Screenshots -->
+            <div v-if="project.screenshots?.length" class="screenshots-section">
+              <div class="carousel-main">
+                <img :src="project.screenshots[carouselIdx]" alt="截图" />
+                <button v-if="project.screenshots.length > 1" class="carousel-btn prev" @click="carouselIdx = (carouselIdx - 1 + project.screenshots.length) % project.screenshots.length">‹</button>
+                <button v-if="project.screenshots.length > 1" class="carousel-btn next" @click="carouselIdx = (carouselIdx + 1) % project.screenshots.length">›</button>
+              </div>
+              <div v-if="project.screenshots.length > 1" class="carousel-dots">
+                <button v-for="(_, i) in project.screenshots" :key="i" class="carousel-dot" :class="{ active: i === carouselIdx }" @click="carouselIdx = i"></button>
+              </div>
             </div>
           </div>
 
@@ -118,6 +128,13 @@
               GitHub
             </a>
             <span v-if="!project.projectUrl && !project.githubUrl" class="no-links">暂无链接</span>
+            <button class="link-btn share-btn" @click="handleShare">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              {{ shareLabel }}
+            </button>
           </div>
 
           <div class="sidebar-card stats-card">
@@ -149,8 +166,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { marked } from 'marked'
 import { projectApi, commentApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -161,6 +179,22 @@ const loading = ref(true)
 const comments = ref<any[]>([])
 const commentText = ref('')
 const posting = ref(false)
+const shareLabel = ref('分享链接')
+const carouselIdx = ref(0)
+
+async function handleShare() {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    shareLabel.value = '已复制!'
+    setTimeout(() => shareLabel.value = '分享链接', 1500)
+  } catch {
+    shareLabel.value = '复制失败'
+  }
+}
+
+const renderedDescription = computed(() => {
+  return project.value?.description ? marked(project.value.description) as string : ''
+})
 
 async function fetchProject() {
   const res: any = await projectApi.getById(Number(route.params.id))
@@ -279,14 +313,49 @@ h1 { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
 .action-btn.liked { color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,0.1); }
 .action-btn.favorited { color: #f59e0b; border-color: #f59e0b; background: rgba(245,158,11,0.1); }
 
-.description pre {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: inherit;
+.markdown-body {
   font-size: 14px;
   color: var(--text-muted);
   line-height: 1.8;
 }
+.markdown-body :deep(h1), .markdown-body :deep(h2), .markdown-body :deep(h3) { color: var(--text); margin-top: 20px; margin-bottom: 8px; }
+.markdown-body :deep(h1) { font-size: 22px; }
+.markdown-body :deep(h2) { font-size: 18px; }
+.markdown-body :deep(h3) { font-size: 16px; }
+.markdown-body :deep(p) { margin-bottom: 12px; }
+.markdown-body :deep(ul), .markdown-body :deep(ol) { padding-left: 20px; margin-bottom: 12px; }
+.markdown-body :deep(li) { margin-bottom: 4px; }
+.markdown-body :deep(code) {
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.markdown-body :deep(pre) {
+  background: var(--bg);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+.markdown-body :deep(pre code) { background: none; padding: 0; }
+.markdown-body :deep(blockquote) {
+  border-left: 3px solid var(--accent);
+  padding-left: 16px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.markdown-body :deep(a) { color: var(--accent-light); text-decoration: underline; }
+.markdown-body :deep(img) { max-width: 100%; border-radius: var(--radius-sm); }
+.markdown-body :deep(table) { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.markdown-body :deep(th), .markdown-body :deep(td) {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13px;
+}
+.markdown-body :deep(th) { background: var(--bg); font-weight: 600; }
 
 .detail-sidebar { display: flex; flex-direction: column; gap: 12px; }
 
@@ -335,6 +404,8 @@ h1 { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
 .link-btn.github:hover { border-color: #6b7280; color: var(--text); }
 
 .no-links { font-size: 13px; color: var(--text-muted); }
+.share-btn { background: none; width: 100%; text-align: left; }
+.share-btn:hover { border-color: #22c55e; color: #22c55e; }
 
 .stat-row {
   display: flex;
@@ -448,4 +519,61 @@ h1 { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
   color: var(--text-muted);
   font-size: 14px;
 }
+
+.screenshots-section { margin-top: 4px; }
+
+.carousel-main {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  background: var(--bg);
+}
+
+.carousel-main img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.carousel-btn:hover { background: rgba(0,0,0,0.8); }
+.carousel-btn.prev { left: 12px; }
+.carousel-btn.next { right: 12px; }
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.carousel-dot.active { background: var(--accent); width: 20px; border-radius: 4px; }
 </style>

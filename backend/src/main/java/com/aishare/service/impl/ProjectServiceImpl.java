@@ -17,6 +17,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,6 +34,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectTagMapper projectTagMapper;
     private final UserLikeMapper userLikeMapper;
     private final UserFavoriteMapper userFavoriteMapper;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     @Transactional
@@ -154,6 +159,11 @@ public class ProjectServiceImpl implements ProjectService {
         project.setCoverUrl(dto.getCoverUrl());
         project.setProjectUrl(dto.getProjectUrl());
         project.setGithubUrl(dto.getGithubUrl());
+        try {
+            if (dto.getScreenshots() != null && !dto.getScreenshots().isEmpty()) {
+                project.setScreenshots(objectMapper.writeValueAsString(dto.getScreenshots()));
+            }
+        } catch (JsonProcessingException ignored) {}
     }
 
     private void saveProjectTags(Long projectId, List<Long> tagIds) {
@@ -169,6 +179,11 @@ public class ProjectServiceImpl implements ProjectService {
         vo.setCoverUrl(project.getCoverUrl());
         vo.setProjectUrl(project.getProjectUrl());
         vo.setGithubUrl(project.getGithubUrl());
+        try {
+            if (project.getScreenshots() != null) {
+                vo.setScreenshots(objectMapper.readValue(project.getScreenshots(), new TypeReference<List<String>>() {}));
+            }
+        } catch (JsonProcessingException ignored) {}
         vo.setLikeCount(project.getLikeCount());
         vo.setFavoriteCount(project.getFavoriteCount());
         vo.setViewCount(project.getViewCount());

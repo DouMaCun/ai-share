@@ -16,11 +16,20 @@
               </div>
 
               <div class="form-item">
-                <label>项目描述</label>
+                <label>项目描述 <span class="md-hint">（支持 Markdown）</span></label>
+                <div class="md-toolbar">
+                  <button type="button" @click="insertMd('**','**')" title="加粗">B</button>
+                  <button type="button" @click="insertMd('*','*')" title="斜体"><em>I</em></button>
+                  <button type="button" @click="insertMd('`','`')" title="行内代码">&lt;/&gt;</button>
+                  <button type="button" @click="insertMd('[','](url)')" title="链接">🔗</button>
+                  <button type="button" @click="insertMd('\n- ','')" title="列表">-</button>
+                  <button type="button" @click="insertMd('\n```\n','\n```')" title="代码块">{ }</button>
+                </div>
                 <textarea
+                  ref="descTextarea"
                   v-model="form.description"
-                  placeholder="详细介绍你的项目，功能、使用方法、技术栈..."
-                  rows="6"
+                  placeholder="详细介绍你的项目：功能特性、使用方法、技术栈...&#10;&#10;支持 Markdown：**加粗** *斜体* `代码` [链接](url)&#10;```&#10;代码块&#10;```&#10;- 列表"
+                  rows="10"
                   maxlength="5000"
                 ></textarea>
                 <span class="char-count">{{ form.description.length }}/5000</span>
@@ -36,7 +45,7 @@
                     style="display:none"
                     @change="handleFileChange"
                   />
-                  <div v-if="uploading" class="cover-uploading">
+                  <div v-if="uploadingCover" class="cover-uploading">
                     <span class="spinner"></span>
                     <span>上传中...</span>
                   </div>
@@ -50,6 +59,28 @@
                     <span class="cover-hint">JPG / PNG / GIF / WebP，最大 5MB</span>
                   </div>
                 </div>
+              </div>
+
+              <div class="form-item">
+                <label>项目截图 <span class="md-hint">（选填，最多5张）</span></label>
+                <div class="screenshot-grid" v-if="screenshotPreviews.length > 0">
+                  <div v-for="(preview, i) in screenshotPreviews" :key="i" class="screenshot-item">
+                    <img :src="preview" alt="截图" />
+                    <button type="button" class="cover-remove" @click="removeScreenshot(i)">&times;</button>
+                    <span v-if="screenshotUploading[i]" class="screenshot-loading"><span class="spinner"></span></span>
+                  </div>
+                </div>
+                <label v-if="screenshotPreviews.length < 5" class="screenshot-add" @click="triggerScreenshot">
+                  <input
+                    ref="screenshotInput"
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    style="display:none"
+                    multiple
+                    @change="handleScreenshotChange"
+                  />
+                  <span class="cover-plus">+</span>
+                </label>
               </div>
             </div>
 
@@ -120,12 +151,32 @@ import { projectApi, tagApi, uploadApi } from '@/api'
 
 const router = useRouter()
 const loading = ref(false)
-const uploading = ref(false)
+const uploadingCover = ref(false)
 const error = ref('')
 const tags = ref<any[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const coverFile = ref<File | null>(null)
 const coverPreview = ref('')
+const descTextarea = ref<HTMLTextAreaElement | null>(null)
+const screenshotInput = ref<HTMLInputElement | null>(null)
+const screenshotFiles = ref<File[]>([])
+const screenshotPreviews = ref<string[]>([])
+const screenshotUploading = ref<boolean[]>([])
+
+function insertMd(before: string, after: string) {
+  const ta = descTextarea.value
+  if (!ta) return
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const text = form.description
+  const selected = text.substring(start, end)
+  form.description = text.substring(0, start) + before + selected + after + text.substring(end)
+  setTimeout(() => {
+    ta.focus()
+    ta.selectionStart = start + before.length
+    ta.selectionEnd = start + before.length + selected.length
+  })
+}
 
 const form = reactive({
   title: '',
@@ -133,6 +184,7 @@ const form = reactive({
   coverUrl: '',
   projectUrl: '',
   githubUrl: '',
+  screenshots: [] as string[],
   tagIds: [] as number[],
   status: 1
 })
@@ -180,16 +232,47 @@ function removeCover() {
   if (fileInput.value) fileInput.value.value = ''
 }
 
+function triggerScreenshot() { screenshotInput.value?.click() }
+
+function handleScreenshotChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (!input.files) return
+  for (let i = 0; i < input.files.length && screenshotFiles.value.length < 5; i++) {
+    const file = input.files[i]
+    if (!file.type.startsWith('image/')) continue
+    if (file.size > 5 * 1024 * 1024) continue
+    screenshotFiles.value.push(file)
+    screenshotPreviews.value.push(URL.createObjectURL(file))
+    screenshotUploading.value.push(false)
+  }
+  input.value = ''
+}
+
+function removeScreenshot(i: number) {
+  screenshotFiles.value.splice(i, 1)
+  screenshotPreviews.value.splice(i, 1)
+  screenshotUploading.value.splice(i, 1)
+}
+
 async function handleSubmit() {
   loading.value = true
   error.value = ''
   try {
-    // 先上传封面图
     if (coverFile.value) {
-      uploading.value = true
+      uploadingCover.value = true
       const uploadRes: any = await uploadApi.image(coverFile.value)
       form.coverUrl = uploadRes.data.url
-      uploading.value = false
+      uploadingCover.value = false
+    }
+    if (screenshotFiles.value.length > 0) {
+      const urls: string[] = []
+      for (let i = 0; i < screenshotFiles.value.length; i++) {
+        screenshotUploading.value[i] = true
+        const uploadRes: any = await uploadApi.image(screenshotFiles.value[i])
+        urls.push(uploadRes.data.url)
+        screenshotUploading.value[i] = false
+      }
+      form.screenshots = urls as any
     }
     const res: any = await projectApi.create(form)
     router.push(`/project/${res.data.id}`)
@@ -197,7 +280,7 @@ async function handleSubmit() {
     error.value = e.message
   } finally {
     loading.value = false
-    uploading.value = false
+    uploadingCover.value = false
   }
 }
 
@@ -240,6 +323,24 @@ onMounted(async () => {
 }
 
 .required { color: var(--danger); }
+.md-hint { font-weight: 400; color: var(--accent-light); font-size: 11px; }
+
+.md-toolbar {
+  display: flex;
+  gap: 4px;
+}
+.md-toolbar button {
+  padding: 4px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.md-toolbar button:hover { border-color: var(--accent); color: var(--text); background: var(--bg-card); }
 
 .form-item input,
 .form-item textarea {
@@ -344,6 +445,57 @@ onMounted(async () => {
 }
 
 .cover-remove:hover { background: var(--danger); }
+
+.screenshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.screenshot-item {
+  position: relative;
+  aspect-ratio: 16/10;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.screenshot-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.screenshot-item .cover-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+}
+
+.screenshot-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.screenshot-add {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  aspect-ratio: 16/10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.screenshot-add:hover { border-color: var(--accent); }
 
 .tag-select { display: flex; flex-wrap: wrap; gap: 8px; }
 

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS share_projects (
     status         TINYINT       DEFAULT 1 COMMENT '1:published 0:draft',
     deleted        TINYINT       DEFAULT 0,
     created_at     DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    screenshots    TEXT          DEFAULT NULL,
     updated_at     DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_user_id (user_id),
     INDEX idx_created_at (created_at)

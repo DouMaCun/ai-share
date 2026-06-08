@@ -14,6 +14,7 @@ public class Project {
     private String coverUrl;
     private String projectUrl;
     private String githubUrl;
+    private String screenshots;
     private Long userId;
     private Integer likeCount;
     private Integer favoriteCount;

@@ -13,6 +13,7 @@ public class ProjectVO {
     private String coverUrl;
     private String projectUrl;
     private String githubUrl;
+    private List<String> screenshots;
     private Integer likeCount;
     private Integer favoriteCount;
     private Integer viewCount;

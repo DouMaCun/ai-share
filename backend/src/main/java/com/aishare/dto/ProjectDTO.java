@@ -17,6 +17,7 @@ public class ProjectDTO {
     private String coverUrl;
     private String projectUrl;
     private String githubUrl;
+    private List<String> screenshots;
     private List<Long> tagIds;
     private Integer status; // 1:publish 0:draft
 }

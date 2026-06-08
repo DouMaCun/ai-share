@@ -17,6 +17,7 @@
         <choose>
             <when test="q.sort == 'hottest'">ORDER BY p.view_count DESC</when>
             <when test="q.sort == 'mostLiked'">ORDER BY p.like_count DESC</when>
+            <when test="q.sort == 'hot'">AND p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY (p.like_count * 3 + p.favorite_count * 2 + p.view_count * 1) DESC</when>
             <otherwise>ORDER BY p.created_at DESC</otherwise>
         </choose>
     </select>

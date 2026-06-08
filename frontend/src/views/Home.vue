@@ -114,6 +114,7 @@ const stats = reactive({ projects: 0, users: 128, tags: 10 })
 
 const sorts = [
   { label: '最新', value: 'newest' },
+  { label: '🔥 本周热门', value: 'hot' },
   { label: '最热', value: 'hottest' },
   { label: '最多点赞', value: 'mostLiked' }
 ]
